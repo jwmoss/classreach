@@ -122,9 +122,8 @@ Section landing endpoints:
 The web application uses separate POST endpoints for read state, archive state, labels, drafts,
 and sends. Version `0.1.0` will not call those mutation endpoints.
 
-`GetThreadMessages` can update the displayed unread count. The CLI warns that `messages get` can
-mark a thread as read. Live verification skipped this endpoint because all first-page threads were
-unread.
+`GetThreadMessages` marks an unread thread as read and returns the updated unread count. A live
+before-and-after test confirmed this behavior. The CLI and agent skill state this side effect.
 
 ### Documents
 
@@ -209,7 +208,7 @@ Live verification succeeded for:
 - `assignments list`
 - `grades list`
 - `attendance list`
-- `messages list`
+- `messages list/get`
 - `documents list`
 - `announcements list`
 - `calendar list`
@@ -217,7 +216,6 @@ Live verification succeeded for:
 
 ## Remaining discovery
 
-- Confirm the message thread read-state behavior before live testing `messages get`.
 - Verify an explicit document download after the user identifies a safe sample.
 - Capture non-empty assignment and detailed grade models when the account supplies them.
 - Confirm paging fields for lists that exceed the current live result size.

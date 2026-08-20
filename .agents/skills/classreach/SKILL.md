@@ -28,7 +28,7 @@ classreach --json --no-input overview
 - Keep secrets and private data out of output and Git commits.
 - Resolve IDs with lists. Download identified files to explicit paths.
 - Use `raw get` only when no typed command exists.
-- Treat `messages get` as a possible read-state change.
+- `messages get` marks an unread thread as read.
 
 ## Examples
 

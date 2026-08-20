@@ -99,8 +99,8 @@ classreach raw get /Home/GetQuickView --query weekDate=2026-08-17T00:00:00 --jso
 classreach completion zsh > ~/.zfunc/_classreach
 ```
 
-`messages get` can cause ClassReach to mark an unread thread as read. Document downloads require
-an explicit output path and use mode `0600`.
+`messages get` marks an unread thread as read in ClassReach. Document downloads require an
+explicit output path and use mode `0600`.
 
 ## Agent skill
 
@@ -143,11 +143,12 @@ make check
 
 ## Release
 
-Tag a semver release:
+After the release PR merges, update local `main` and tag the merge commit:
 
 ```bash
+git switch main
+git pull --ff-only origin main
 git tag v0.1.0
-git push origin main
 git push origin v0.1.0
 ```
 

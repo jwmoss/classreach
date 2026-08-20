@@ -54,7 +54,7 @@ func newMessagesGetCommand(rc *runtime) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <thread-id>",
 		Short: "Get one message thread",
-		Long:  "Get one message thread. ClassReach can mark an unread thread as read.",
+		Long:  "Get one message thread. ClassReach marks an unread thread as read.",
 		Args:  usageArgs(cobra.ExactArgs(1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			response, err := rc.client.GetMessageThread(cmd.Context(), args[0])
@@ -80,7 +80,7 @@ func newMessagesDownloadCommand(rc *runtime) *cobra.Command {
 		Use:   "download <thread-id> <file-id>",
 		Short: "Download one message attachment",
 		Long: "Download one message attachment. " +
-			"ClassReach can mark an unread thread as read.",
+			"ClassReach marks an unread thread as read.",
 		Args: usageArgs(cobra.ExactArgs(2)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if outputPath == "" {
