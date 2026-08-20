@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jwmoss/classreach/internal/config"
 )
@@ -22,6 +23,31 @@ func TestVersionJSON(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"version": "dev"`) {
 		t.Fatalf("stdout = %s", stdout.String())
+	}
+}
+
+func TestGlobalEnv(t *testing.T) {
+	t.Setenv(config.EnvPrefix+"_TIMEOUT", "45s")
+	t.Setenv(config.EnvPrefix+"_DRY_RUN", "true")
+	t.Setenv(config.EnvPrefix+"_OUTPUT", "json")
+
+	var stdout, stderr bytes.Buffer
+	rc := &runtime{
+		ctx:    context.Background(),
+		stdin:  strings.NewReader(""),
+		stdout: &stdout,
+		stderr: &stderr,
+		g:      &globals{timeout: 30 * time.Second},
+	}
+	cmd := newRootCommand(rc)
+	cmd.SetArgs([]string{"version"})
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	if err := cmd.ExecuteContext(rc.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if rc.g.timeout != 45*time.Second || !rc.g.dryRun || !rc.g.asJSON {
+		t.Fatalf("environment was not applied: %#v", rc.g)
 	}
 }
 

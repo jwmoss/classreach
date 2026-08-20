@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -95,6 +97,9 @@ func newRootCommand(rc *runtime) *cobra.Command {
 			return errUsage
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := applyGlobalEnv(cmd, rc.g); err != nil {
+				return fmt.Errorf("%w: %v", errUsage, err)
+			}
 			if rc.g.showVersion || commandSkipsClient(cmd) {
 				rc.out = output.New(rc.stdout, rc.stderr, rc.g.asJSON, rc.g.plain, rc.g.quiet, rc.g.noColor)
 				return nil
@@ -192,6 +197,36 @@ func (rc *runtime) traceHTTP(method, path string, status int, duration time.Dura
 		status,
 		duration,
 	)
+}
+
+func applyGlobalEnv(cmd *cobra.Command, g *globals) error {
+	flags := cmd.Root().PersistentFlags()
+	if value := os.Getenv(config.EnvPrefix + "_TIMEOUT"); value != "" && !flags.Changed("timeout") {
+		timeout, err := time.ParseDuration(value)
+		if err != nil {
+			return fmt.Errorf("CLASSREACH_TIMEOUT must be a duration: %w", err)
+		}
+		g.timeout = timeout
+	}
+	if value := os.Getenv(config.EnvPrefix + "_DRY_RUN"); value != "" && !flags.Changed("dry-run") {
+		dryRun, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("CLASSREACH_DRY_RUN must be true or false: %w", err)
+		}
+		g.dryRun = dryRun
+	}
+	if !flags.Changed("json") && !flags.Changed("plain") {
+		switch strings.ToLower(strings.TrimSpace(os.Getenv(config.EnvPrefix + "_OUTPUT"))) {
+		case "":
+		case "json":
+			g.asJSON = true
+		case "plain":
+			g.plain = true
+		default:
+			return fmt.Errorf("CLASSREACH_OUTPUT must be json or plain")
+		}
+	}
+	return nil
 }
 
 func commandSkipsClient(cmd *cobra.Command) bool {

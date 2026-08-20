@@ -86,10 +86,10 @@ func (c Config) Validate() error {
 		return fmt.Errorf("origin host is required; set --origin-host or config file origin_host")
 	}
 	if c.Username == "" {
-		return fmt.Errorf("username is required; set config file username")
+		return fmt.Errorf("username is required; set CLASSREACH_USERNAME or config file username")
 	}
 	if c.Password == "" {
-		return fmt.Errorf("password is required; set config file password")
+		return fmt.Errorf("password is required; set CLASSREACH_PASSWORD or config file password")
 	}
 	return nil
 }
@@ -109,6 +109,12 @@ func applyEnv(cfg *Config) {
 	}
 	if value := os.Getenv(EnvPrefix + "_ORIGIN_HOST"); value != "" {
 		cfg.OriginHost = value
+	}
+	if value := os.Getenv(EnvPrefix + "_USERNAME"); value != "" {
+		cfg.Username = value
+	}
+	if value := os.Getenv(EnvPrefix + "_PASSWORD"); value != "" {
+		cfg.Password = value
 	}
 }
 

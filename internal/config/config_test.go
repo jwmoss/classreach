@@ -18,6 +18,8 @@ func TestLoadEnvOverridesFile(t *testing.T) {
 	}
 	t.Setenv(EnvPrefix+"_BASE_URL", "https://env.example/")
 	t.Setenv(EnvPrefix+"_ORIGIN_HOST", "env-origin.example")
+	t.Setenv(EnvPrefix+"_USERNAME", "env-guardian")
+	t.Setenv(EnvPrefix+"_PASSWORD", "env-secret")
 
 	cfg, err := Load(path)
 	if err != nil {
@@ -29,8 +31,8 @@ func TestLoadEnvOverridesFile(t *testing.T) {
 	if cfg.OriginHost != "env-origin.example" {
 		t.Fatalf("OriginHost = %q", cfg.OriginHost)
 	}
-	if cfg.Username != "guardian" || cfg.Password != "secret" {
-		t.Fatalf("credentials were not loaded")
+	if cfg.Username != "env-guardian" || cfg.Password != "env-secret" {
+		t.Fatalf("credentials were not loaded from the environment")
 	}
 }
 

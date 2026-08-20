@@ -59,10 +59,23 @@ password: your-password
 
 Environment variables:
 
+```bash
+export CLASSREACH_USERNAME='guardian@example.com'
+export CLASSREACH_PASSWORD='your-password'
+export CLASSREACH_TIMEOUT='30s'
+export CLASSREACH_DRY_RUN='true'
+export CLASSREACH_OUTPUT='json'
+```
+
 | Variable | Purpose |
 | --- | --- |
 | `CLASSREACH_BASE_URL` | ClassReach tenant URL |
 | `CLASSREACH_ORIGIN_HOST` | Azure origin host |
+| `CLASSREACH_USERNAME` | ClassReach username or email |
+| `CLASSREACH_PASSWORD` | ClassReach password |
+| `CLASSREACH_TIMEOUT` | HTTP timeout as a Go duration, such as `30s` |
+| `CLASSREACH_DRY_RUN` | Refuse non-GET HTTP requests when set to `true` |
+| `CLASSREACH_OUTPUT` | Output mode: `json` or `plain` |
 
 Precedence:
 
