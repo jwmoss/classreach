@@ -31,6 +31,7 @@ var (
 type globals struct {
 	configPath  string
 	baseURL     string
+	originHost  string
 	asJSON      bool
 	plain       bool
 	quiet       bool
@@ -94,7 +95,7 @@ func newRootCommand(rc *runtime) *cobra.Command {
 			return errUsage
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if commandSkipsClient(cmd) {
+			if rc.g.showVersion || commandSkipsClient(cmd) {
 				rc.out = output.New(rc.stdout, rc.stderr, rc.g.asJSON, rc.g.plain, rc.g.quiet, rc.g.noColor)
 				return nil
 			}
@@ -104,7 +105,8 @@ func newRootCommand(rc *runtime) *cobra.Command {
 
 	flags := root.PersistentFlags()
 	flags.StringVar(&rc.g.configPath, "config", "", "config file path")
-	flags.StringVar(&rc.g.baseURL, "base-url", "", "API base URL override")
+	flags.StringVar(&rc.g.baseURL, "base-url", "", "ClassReach tenant URL override")
+	flags.StringVar(&rc.g.originHost, "origin-host", "", "ClassReach Azure origin host override")
 	flags.BoolVar(&rc.g.asJSON, "json", false, "emit JSON to stdout")
 	flags.BoolVar(&rc.g.plain, "plain", false, "emit stable plain text where available")
 	flags.BoolVarP(&rc.g.quiet, "quiet", "q", false, "suppress non-essential output")
@@ -117,9 +119,20 @@ func newRootCommand(rc *runtime) *cobra.Command {
 
 	root.AddCommand(newVersionCommand(rc))
 	root.AddCommand(newConfigCommand(rc))
+	root.AddCommand(newLoginCommand(rc))
 	root.AddCommand(newDoctorCommand(rc))
+	root.AddCommand(newOverviewCommand(rc))
+	root.AddCommand(newStudentsCommand(rc))
+	root.AddCommand(newCoursesCommand(rc))
+	root.AddCommand(newAssignmentsCommand(rc))
+	root.AddCommand(newGradesCommand(rc))
+	root.AddCommand(newAttendanceCommand(rc))
+	root.AddCommand(newMessagesCommand(rc))
+	root.AddCommand(newDocumentsCommand(rc))
+	root.AddCommand(newAnnouncementsCommand(rc))
+	root.AddCommand(newCalendarCommand(rc))
+	root.AddCommand(newDirectoryCommand(rc))
 	root.AddCommand(newRawCommand(rc))
-	root.AddCommand(newResourcesCommand(rc))
 	root.AddCommand(newCompletionCommand(root))
 
 	return root
@@ -129,31 +142,55 @@ func (rc *runtime) initClient() error {
 	if rc.g.asJSON && rc.g.plain {
 		return fmt.Errorf("%w: choose only one of --json or --plain", errUsage)
 	}
-	cfg, err := config.Load(rc.g.configPath)
+	cfg, err := rc.loadConfig()
 	if err != nil {
-		return err
-	}
-	if rc.g.baseURL != "" {
-		cfg.BaseURL = rc.g.baseURL
-	}
-	if err := cfg.Validate(); err != nil {
 		return err
 	}
 	rc.cfg = cfg
 	rc.out = output.New(rc.stdout, rc.stderr, rc.g.asJSON, rc.g.plain, rc.g.quiet, rc.g.noColor)
+	rc.client = api.New(cfg.BaseURL, rc.clientOptions(cfg)...)
+	return rc.client.Login(rc.ctx, cfg.Username, cfg.Password)
+}
+
+func (rc *runtime) loadConfig() (*config.Config, error) {
+	cfg, err := config.Load(rc.g.configPath)
+	if err != nil {
+		return nil, err
+	}
+	if rc.g.baseURL != "" {
+		cfg.BaseURL = rc.g.baseURL
+	}
+	if rc.g.originHost != "" {
+		cfg.OriginHost = rc.g.originHost
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func (rc *runtime) clientOptions(cfg *config.Config) []api.Option {
 	options := []api.Option{
 		api.WithTimeout(rc.g.timeout),
-		api.WithAuth(cfg.AuthHeader, cfg.AuthScheme, cfg.Token),
+		api.WithOriginHost(cfg.OriginHost),
 		api.WithDryRun(rc.g.dryRun),
 		api.WithUserAgent("classreach/" + version),
 	}
 	if rc.g.traceHTTP {
-		options = append(options, api.WithTrace(func(method, path string, status int, duration time.Duration) {
-			_, _ = fmt.Fprintf(rc.stderr, "[http] %s %s -> %d (%s)\n", method, path, status, duration)
-		}))
+		options = append(options, api.WithTrace(rc.traceHTTP))
 	}
-	rc.client = api.New(cfg.BaseURL, options...)
-	return nil
+	return options
+}
+
+func (rc *runtime) traceHTTP(method, path string, status int, duration time.Duration) {
+	_, _ = fmt.Fprintf(
+		rc.stderr,
+		"[http] %s %s -> %d (%s)\n",
+		method,
+		path,
+		status,
+		duration,
+	)
 }
 
 func commandSkipsClient(cmd *cobra.Command) bool {

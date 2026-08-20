@@ -5,46 +5,32 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 func newRawCommand(rc *runtime) *cobra.Command {
-	var (
-		dataFlag  string
-		fileFlag  string
-		queryFlag []string
-	)
 	cmd := &cobra.Command{
-		Use:   "raw <method> <path>",
-		Short: "Send a raw HTTP request",
-		Args:  usageArgs(cobra.ExactArgs(2)),
+		Use:   "raw",
+		Short: "Send a read-only raw HTTP request",
+	}
+	cmd.AddCommand(newRawGetCommand(rc))
+	return cmd
+}
+
+func newRawGetCommand(rc *runtime) *cobra.Command {
+	var queryFlag []string
+	cmd := &cobra.Command{
+		Use:   "get <path>",
+		Short: "Send a raw GET request",
+		Args:  usageArgs(cobra.ExactArgs(1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var body any
-			if dataFlag != "" && fileFlag != "" {
-				return fmt.Errorf("%w: use only one of --data or --file", errUsage)
-			}
-			if dataFlag != "" {
-				if err := json.Unmarshal([]byte(dataFlag), &body); err != nil {
-					return fmt.Errorf("parse --data JSON: %w", err)
-				}
-			}
-			if fileFlag != "" {
-				data, err := os.ReadFile(fileFlag)
-				if err != nil {
-					return fmt.Errorf("read --file: %w", err)
-				}
-				if err := json.Unmarshal(data, &body); err != nil {
-					return fmt.Errorf("parse --file JSON: %w", err)
-				}
-			}
 			query, err := parseQuery(queryFlag)
 			if err != nil {
 				return err
 			}
-			resp, err := rc.client.Do(cmd.Context(), args[0], args[1], query, body)
+			resp, err := rc.client.Do(cmd.Context(), http.MethodGet, args[0], query, nil)
 			if err != nil {
 				return err
 			}
@@ -55,19 +41,17 @@ func newRawCommand(rc *runtime) *cobra.Command {
 				}
 				return rc.out.JSON(decoded)
 			}
-			if len(resp) > 0 {
-				rc.out.Printf("%s", string(resp))
-				if !strings.HasSuffix(string(resp), "\n") {
-					rc.out.Printf("\n")
-				}
+			if len(resp) == 0 {
+				return nil
+			}
+			rc.out.Printf("%s", string(resp))
+			if !strings.HasSuffix(string(resp), "\n") {
+				rc.out.Printf("\n")
 			}
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&dataFlag, "data", "", "JSON request body")
-	cmd.Flags().StringVar(&fileFlag, "file", "", "path to JSON request body")
 	cmd.Flags().StringArrayVar(&queryFlag, "query", nil, "query parameter in key=value form")
-	_ = http.MethodGet
 	return cmd
 }
 

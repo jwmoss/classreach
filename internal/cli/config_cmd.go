@@ -35,11 +35,12 @@ func newConfigShowCommand(rc *runtime) *cobra.Command {
 			if rc.out.IsJSON() {
 				return rc.out.JSON(cfg.Redacted())
 			}
+			redacted := cfg.Redacted()
 			rc.out.Table([]string{"KEY", "VALUE"}, [][]string{
 				{"base_url", cfg.BaseURL},
-				{"token", cfg.Redacted()["token"]},
-				{"auth_header", cfg.AuthHeader},
-				{"auth_scheme", cfg.AuthScheme},
+				{"origin_host", cfg.OriginHost},
+				{"username", redacted["username"]},
+				{"password", redacted["password"]},
 				{"path", config.DefaultPath()},
 			})
 			return nil
@@ -49,9 +50,11 @@ func newConfigShowCommand(rc *runtime) *cobra.Command {
 
 func newConfigInitCommand(rc *runtime) *cobra.Command {
 	var (
-		baseURL    string
-		tokenStdin bool
-		force      bool
+		baseURL       string
+		originHost    string
+		username      string
+		passwordStdin bool
+		force         bool
 	)
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -65,15 +68,15 @@ func newConfigInitCommand(rc *runtime) *cobra.Command {
 				return fmt.Errorf("config already exists at %s; use --force to overwrite", path)
 			}
 			cfg := config.Default()
-			if baseURL != "" {
-				cfg.BaseURL = baseURL
-			}
-			if tokenStdin {
+			cfg.BaseURL = baseURL
+			cfg.OriginHost = originHost
+			cfg.Username = username
+			if passwordStdin {
 				data, err := io.ReadAll(cmd.InOrStdin())
 				if err != nil {
-					return fmt.Errorf("read token from stdin: %w", err)
+					return fmt.Errorf("read password from stdin: %w", err)
 				}
-				cfg.Token = strings.TrimSpace(string(data))
+				cfg.Password = strings.TrimSpace(string(data))
 			}
 			if err := config.Save(path, cfg); err != nil {
 				return err
@@ -83,8 +86,15 @@ func newConfigInitCommand(rc *runtime) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&baseURL, "base-url", config.DefaultBaseURL, "API base URL")
-	cmd.Flags().BoolVar(&tokenStdin, "token-stdin", false, "read token from stdin and store it in the config file")
+	cmd.Flags().StringVar(&baseURL, "base-url", config.DefaultBaseURL, "ClassReach tenant URL")
+	cmd.Flags().StringVar(
+		&originHost,
+		"origin-host",
+		config.DefaultOriginHost,
+		"ClassReach Azure origin host",
+	)
+	cmd.Flags().StringVar(&username, "username", "", "ClassReach username or email")
+	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the password from stdin")
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite an existing config file")
 	return cmd
 }

@@ -7,27 +7,24 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"time"
 )
 
 const (
-	DefaultBaseURL    = "https://providencewilmington.classreach.com"
-	DefaultAuthHeader = "Authorization"
-	DefaultAuthScheme = "Bearer"
-	DefaultUserAgent  = "classreach/dev"
+	DefaultBaseURL   = "https://providencewilmington.classreach.com"
+	DefaultUserAgent = "classreach/dev"
 )
 
 type Client struct {
-	baseURL    string
-	token      string
-	authHeader string
-	authScheme string
-	httpClient *http.Client
-	userAgent  string
-	trace      func(method, path string, status int, duration time.Duration)
-	dryRun     bool
+	baseURL          string
+	antiForgeryToken string
+	httpClient       *http.Client
+	userAgent        string
+	trace            func(method, path string, status int, duration time.Duration)
+	dryRun           bool
 }
 
 type Option func(*Client)
@@ -56,16 +53,6 @@ func WithUserAgent(userAgent string) Option {
 	}
 }
 
-func WithAuth(header, scheme, token string) Option {
-	return func(c *Client) {
-		if strings.TrimSpace(header) != "" {
-			c.authHeader = header
-		}
-		c.authScheme = strings.TrimSpace(scheme)
-		c.token = strings.TrimSpace(token)
-	}
-}
-
 func WithTrace(trace func(method, path string, status int, duration time.Duration)) Option {
 	return func(c *Client) {
 		c.trace = trace
@@ -79,14 +66,14 @@ func WithDryRun(dryRun bool) Option {
 }
 
 func New(baseURL string, opts ...Option) *Client {
+	jar, _ := cookiejar.New(nil)
 	c := &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{
+			Jar:     jar,
 			Timeout: 30 * time.Second,
 		},
-		authHeader: DefaultAuthHeader,
-		authScheme: DefaultAuthScheme,
-		userAgent:  DefaultUserAgent,
+		userAgent: DefaultUserAgent,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -109,29 +96,60 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s %s: HTTP %d", e.Method, e.Path, e.Status)
 }
 
-func (c *Client) Do(ctx context.Context, method, requestPath string, query url.Values, body any) ([]byte, error) {
+func (c *Client) Do(
+	ctx context.Context,
+	method, requestPath string,
+	query url.Values,
+	body any,
+) ([]byte, error) {
 	method = strings.ToUpper(strings.TrimSpace(method))
-	if method == "" {
-		return nil, fmt.Errorf("method is required")
+	if err := c.validateMethod(method, requestPath); err != nil {
+		return nil, err
 	}
-	if c.dryRun && method != http.MethodGet {
-		return nil, fmt.Errorf("dry-run: refusing %s %s", method, requestPath)
-	}
-
 	endpoint, err := c.url(requestPath, query)
 	if err != nil {
 		return nil, err
 	}
-
-	var reader io.Reader
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("encode request body: %w", err)
-		}
-		reader = bytes.NewReader(data)
+	req, err := c.newAPIRequest(ctx, method, endpoint, body)
+	if err != nil {
+		return nil, err
 	}
+	start := time.Now()
+	data, status, err := c.send(req)
+	if err != nil {
+		return nil, err
+	}
+	if c.trace != nil {
+		c.trace(method, req.URL.Path, status, time.Since(start))
+	}
+	if status < 200 || status >= 300 {
+		return data, &APIError{
+			Status: status, Method: method, Path: req.URL.Path, Body: data,
+			Message: extractErrorMessage(data),
+		}
+	}
+	return data, nil
+}
 
+func (c *Client) validateMethod(method, requestPath string) error {
+	if method == "" {
+		return fmt.Errorf("method is required")
+	}
+	if c.dryRun && method != http.MethodGet {
+		return fmt.Errorf("dry-run: refusing %s %s", method, requestPath)
+	}
+	return nil
+}
+
+func (c *Client) newAPIRequest(
+	ctx context.Context,
+	method, endpoint string,
+	body any,
+) (*http.Request, error) {
+	reader, err := jsonReader(body)
+	if err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -140,43 +158,48 @@ func (c *Client) Do(ctx context.Context, method, requestPath string, query url.V
 	req.Header.Set("User-Agent", c.userAgent)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("__RequestVerificationToken", c.antiForgeryToken)
 	}
-	if c.token != "" && c.authHeader != "" {
-		value := c.token
-		if c.authScheme != "" {
-			value = c.authScheme + " " + c.token
-		}
-		req.Header.Set(c.authHeader, value)
-	}
-
-	start := time.Now()
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-	if c.trace != nil {
-		c.trace(method, req.URL.Path, resp.StatusCode, time.Since(start))
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return data, &APIError{
-			Status:  resp.StatusCode,
-			Method:  method,
-			Path:    req.URL.Path,
-			Body:    data,
-			Message: extractErrorMessage(data),
-		}
-	}
-	return data, nil
+	return req, nil
 }
 
-func (c *Client) DoJSON(ctx context.Context, method, requestPath string, query url.Values, body any, out any) error {
-	data, err := c.Do(ctx, method, requestPath, query, body)
+func jsonReader(body any) (io.Reader, error) {
+	if body == nil {
+		return nil, nil
+	}
+	data, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("encode request body: %w", err)
+	}
+	return bytes.NewReader(data), nil
+}
+
+func (c *Client) send(req *http.Request) ([]byte, int, error) {
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("read response: %w", err)
+	}
+	return data, resp.StatusCode, nil
+}
+
+type JSONRequest struct {
+	Body   any
+	Method string
+	Path   string
+	Query  url.Values
+}
+
+func (c *Client) DoJSON(
+	ctx context.Context,
+	request JSONRequest,
+	out any,
+) error {
+	data, err := c.Do(ctx, request.Method, request.Path, request.Query, request.Body)
 	if err != nil {
 		return err
 	}
@@ -226,41 +249,24 @@ func mergeQuery(dst, src url.Values) url.Values {
 func extractErrorMessage(data []byte) string {
 	var generic map[string]any
 	if err := json.Unmarshal(data, &generic); err != nil {
-		return strings.TrimSpace(string(data))
+		return ""
 	}
 	for _, key := range []string{"message", "error", "detail"} {
 		if value, ok := generic[key].(string); ok {
-			return value
+			return limitErrorMessage(value)
 		}
 	}
 	if errorsValue, ok := generic["errors"]; ok {
-		return fmt.Sprint(errorsValue)
+		return limitErrorMessage(fmt.Sprint(errorsValue))
 	}
-	return strings.TrimSpace(string(data))
+	return ""
 }
 
-type Resource struct {
-	ID          string `json:"id" yaml:"id"`
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-}
-
-func (c *Client) ListResources(ctx context.Context) ([]Resource, error) {
-	var resources []Resource
-	if err := c.DoJSON(ctx, http.MethodGet, "/v1/resources", nil, nil, &resources); err != nil {
-		return nil, err
+func limitErrorMessage(message string) string {
+	message = strings.Join(strings.Fields(message), " ")
+	const maxLength = 300
+	if len(message) <= maxLength {
+		return message
 	}
-	return resources, nil
-}
-
-func (c *Client) GetResource(ctx context.Context, id string) (*Resource, error) {
-	if strings.TrimSpace(id) == "" {
-		return nil, fmt.Errorf("resource id is required")
-	}
-	var resource Resource
-	path := strings.TrimRight("/v1/resources", "/") + "/" + url.PathEscape(id)
-	if err := c.DoJSON(ctx, http.MethodGet, path, nil, nil, &resource); err != nil {
-		return nil, err
-	}
-	return &resource, nil
+	return message[:maxLength] + "..."
 }

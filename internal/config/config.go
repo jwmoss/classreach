@@ -13,23 +13,21 @@ const (
 	AppName           = "classreach"
 	EnvPrefix         = "CLASSREACH"
 	DefaultBaseURL    = "https://providencewilmington.classreach.com"
-	DefaultAuthHeader = "Authorization"
-	DefaultAuthScheme = "Bearer"
+	DefaultOriginHost = "classreach.azurewebsites.net"
 	ConfigFilename    = "config.yaml"
 )
 
 type Config struct {
 	BaseURL    string `yaml:"base_url"`
-	Token      string `yaml:"token,omitempty"`
-	AuthHeader string `yaml:"auth_header,omitempty"`
-	AuthScheme string `yaml:"auth_scheme,omitempty"`
+	OriginHost string `yaml:"origin_host"`
+	Username   string `yaml:"username"`
+	Password   string `yaml:"password"`
 }
 
 func Default() Config {
 	return Config{
 		BaseURL:    DefaultBaseURL,
-		AuthHeader: DefaultAuthHeader,
-		AuthScheme: DefaultAuthScheme,
+		OriginHost: DefaultOriginHost,
 	}
 }
 
@@ -81,22 +79,27 @@ func Save(path string, cfg Config) error {
 }
 
 func (c Config) Validate() error {
-	if strings.TrimSpace(c.BaseURL) == "" {
-		return fmt.Errorf("base URL is required; set --base-url, %s_BASE_URL, or config file base_url", EnvPrefix)
+	if c.BaseURL == "" {
+		return fmt.Errorf("base URL is required; set --base-url or config file base_url")
+	}
+	if c.OriginHost == "" {
+		return fmt.Errorf("origin host is required; set --origin-host or config file origin_host")
+	}
+	if c.Username == "" {
+		return fmt.Errorf("username is required; set config file username")
+	}
+	if c.Password == "" {
+		return fmt.Errorf("password is required; set config file password")
 	}
 	return nil
 }
 
 func (c Config) Redacted() map[string]string {
-	token := ""
-	if c.Token != "" {
-		token = "redacted"
-	}
 	return map[string]string{
 		"base_url":    c.BaseURL,
-		"token":       token,
-		"auth_header": c.AuthHeader,
-		"auth_scheme": c.AuthScheme,
+		"origin_host": c.OriginHost,
+		"username":    redact(c.Username),
+		"password":    redact(c.Password),
 	}
 }
 
@@ -104,26 +107,20 @@ func applyEnv(cfg *Config) {
 	if value := os.Getenv(EnvPrefix + "_BASE_URL"); value != "" {
 		cfg.BaseURL = value
 	}
-	if value := os.Getenv(EnvPrefix + "_TOKEN"); value != "" {
-		cfg.Token = value
-	}
-	if value := os.Getenv(EnvPrefix + "_AUTH_HEADER"); value != "" {
-		cfg.AuthHeader = value
-	}
-	if value := os.Getenv(EnvPrefix + "_AUTH_SCHEME"); value != "" {
-		cfg.AuthScheme = value
+	if value := os.Getenv(EnvPrefix + "_ORIGIN_HOST"); value != "" {
+		cfg.OriginHost = value
 	}
 }
 
 func normalize(cfg *Config) {
 	cfg.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
-	cfg.Token = strings.TrimSpace(cfg.Token)
-	cfg.AuthHeader = strings.TrimSpace(cfg.AuthHeader)
-	cfg.AuthScheme = strings.TrimSpace(cfg.AuthScheme)
-	if cfg.AuthHeader == "" {
-		cfg.AuthHeader = DefaultAuthHeader
+	cfg.OriginHost = strings.TrimSpace(cfg.OriginHost)
+	cfg.Username = strings.TrimSpace(cfg.Username)
+}
+
+func redact(value string) string {
+	if value == "" {
+		return ""
 	}
-	if cfg.AuthScheme == "" {
-		cfg.AuthScheme = DefaultAuthScheme
-	}
+	return "redacted"
 }
