@@ -15,7 +15,8 @@ import (
 func TestFindMessageFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprint(w, `{"MessageThreadViewModel":{"Messages":[`+
-			`{"Files":[{"ID":"file-1","Name":"Notice","Url":"/file"}]}]}}`)
+			`{"Files":[{"ID":"file-1","Name":"Notice",`+
+			`"FileDownloadLink":"/file"}]}]}}`)
 	}))
 	defer server.Close()
 
@@ -26,7 +27,7 @@ func TestFindMessageFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if file.URL != "/file" {
+	if file.DownloadURL() != "/file" {
 		t.Fatalf("file = %#v", file)
 	}
 }

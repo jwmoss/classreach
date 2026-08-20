@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.2 - 2026-08-19
+
+- Fix message attachment downloads when ClassReach returns `FileDownloadLink`.
+
 ## 0.1.0 - 2026-08-19
 
 - Add direct ClassReach web authentication through the tenant Azure origin.

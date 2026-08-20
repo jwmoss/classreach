@@ -76,9 +76,17 @@ type MessageRecipient struct {
 }
 
 type FileInfo struct {
-	ID   string `json:"ID"`
-	Name string `json:"Name"`
-	URL  string `json:"Url"`
+	DownloadLink string `json:"FileDownloadLink"`
+	ID           string `json:"ID"`
+	Name         string `json:"Name"`
+	URL          string `json:"Url"`
+}
+
+func (f FileInfo) DownloadURL() string {
+	if f.URL != "" {
+		return f.URL
+	}
+	return f.DownloadLink
 }
 
 type MessageThreadDetail struct {
