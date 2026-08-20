@@ -93,7 +93,7 @@ func newMessagesDownloadCommand(rc *runtime) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := rc.client.Download(cmd.Context(), file.URL)
+			data, err := rc.client.Download(cmd.Context(), file.DownloadURL())
 			if err != nil {
 				return err
 			}
@@ -122,7 +122,7 @@ func findMessageFile(
 	for _, message := range response.MessageThreadViewModel.Messages {
 		for _, file := range message.Files {
 			if file.ID == fileID {
-				if file.URL == "" {
+				if file.DownloadURL() == "" {
 					return nil, fmt.Errorf("message file %q has no download URL", fileID)
 				}
 				return &file, nil
