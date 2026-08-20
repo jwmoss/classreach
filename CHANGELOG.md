@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-19
+
+- Add weekly agenda downloads as extracted PDF files or a raw ZIP archive.
+- Preserve exact response bytes from `raw get` for binary endpoints.
+
 ## 0.1.2 - 2026-08-19
 
 - Fix message attachment downloads when ClassReach returns `FileDownloadLink`.

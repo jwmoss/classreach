@@ -156,6 +156,9 @@ The first release will use only the GET endpoints.
 | GET | `/Agenda/GetAgendaForWeek` | week and student context |
 | GET | `/Agenda/DownloadAgendaForWeek` | `weekDate` |
 
+The quick view supplies the agenda download URL. The download response is a ZIP archive of PDF
+assignment sheets. `agenda download` follows that URL and can save the archive or extract its files.
+
 `/Agenda/ChangeAgendaItemCompletionStatus` is a mutation and remains unsupported.
 
 ### Grades, assignments, and attendance

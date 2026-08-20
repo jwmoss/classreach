@@ -122,6 +122,7 @@ func newRootCommand(rc *runtime) *cobra.Command {
 	root.AddCommand(newLoginCommand(rc))
 	root.AddCommand(newDoctorCommand(rc))
 	root.AddCommand(newOverviewCommand(rc))
+	root.AddCommand(newAgendaCommand(rc))
 	root.AddCommand(newStudentsCommand(rc))
 	root.AddCommand(newCoursesCommand(rc))
 	root.AddCommand(newAssignmentsCommand(rc))

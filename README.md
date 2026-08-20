@@ -82,6 +82,7 @@ classreach version
 classreach login
 classreach doctor --json
 classreach overview --json
+classreach agenda download --week 2026-08-17 --output agenda
 classreach students list --json
 classreach courses list --json
 classreach assignments list --student <student-id> --section <section-id> --json
