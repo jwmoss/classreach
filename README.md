@@ -34,26 +34,35 @@ make build
 
 ## Configuration
 
-Initialize a config file:
+Initialize a config file without putting the password in shell history:
 
 ```bash
-classreach config init --base-url https://providencewilmington.classreach.com
+printf '%s\n' "$CLASSREACH_PASSWORD" | classreach config init \
+  --username guardian@example.com \
+  --password-stdin
 ```
 
-Config path:
+Show the platform-specific config path:
 
-```text
-$XDG_CONFIG_HOME/classreach/config.yaml
+```bash
+classreach config show
+```
+
+The generated file uses mode `0600`:
+
+```yaml
+base_url: https://providencewilmington.classreach.com
+origin_host: classreach.azurewebsites.net
+username: guardian@example.com
+password: your-password
 ```
 
 Environment variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `CLASSREACH_BASE_URL` | API base URL |
-| `CLASSREACH_TOKEN` | API token |
-| `CLASSREACH_AUTH_HEADER` | Auth header name |
-| `CLASSREACH_AUTH_SCHEME` | Auth scheme, for example `Bearer` |
+| `CLASSREACH_BASE_URL` | ClassReach tenant URL |
+| `CLASSREACH_ORIGIN_HOST` | Azure origin host |
 
 Precedence:
 
@@ -61,8 +70,8 @@ Precedence:
 flags > environment > config file > defaults
 ```
 
-Tokens are intentionally not accepted as command-line flags by default. Use the
-environment, a `0600` config file, or stdin-backed setup.
+The CLI connects to the Azure origin while it preserves the configured tenant hostname. This
+allows direct API access without browser automation. `config show` redacts the credentials.
 
 ## Usage
 
@@ -70,20 +79,44 @@ environment, a `0600` config file, or stdin-backed setup.
 classreach --help
 classreach --version
 classreach version
-classreach doctor
-classreach students list
-classreach students get 123
-classreach raw GET /v1/me --json
-printf '%s\n' "$TOKEN" | classreach config init --token-stdin --force
+classreach login
+classreach doctor --json
+classreach overview --json
+classreach students list --json
+classreach courses list --json
+classreach assignments list --student <student-id> --section <section-id> --json
+classreach grades list --student <student-id> --json
+classreach attendance list --student <student-id> --section <section-id> --json
+classreach messages list --json
+classreach messages get <thread-id> --json
+classreach messages download <thread-id> <file-id> --output attachment.pdf
+classreach documents list --json
+classreach announcements list --json
+classreach calendar list --start 2026-08-20 --end 2026-09-20 --json
+classreach directory list --json
+classreach directory families --search NAME --json
+classreach raw get /Home/GetQuickView --query weekDate=2026-08-17T00:00:00 --json
 classreach completion zsh > ~/.zfunc/_classreach
 ```
+
+`messages get` marks an unread thread as read in ClassReach. Document downloads require an
+explicit output path and use mode `0600`.
+
+## Agent skill
+
+The repository includes `.agents/skills/classreach/SKILL.md`. It follows the SkyCLI skill pattern
+and directs OpenClaw to use stable JSON and read-only commands.
+
+Use this repository as the agent workspace or install that skill directory through the host's
+normal skill installation method.
 
 ## Global Flags
 
 | Flag | Description |
 | --- | --- |
 | `--config` | Config file path |
-| `--base-url` | API base URL override |
+| `--base-url` | ClassReach tenant URL override |
+| `--origin-host` | ClassReach Azure origin host override |
 | `--version` | Print version information |
 | `--json` | Emit JSON to stdout |
 | `--plain` | Emit stable plain text where available |
@@ -110,11 +143,12 @@ make check
 
 ## Release
 
-Tag a semver release:
+After the release PR merges, update local `main` and tag the merge commit:
 
 ```bash
+git switch main
+git pull --ff-only origin main
 git tag v0.1.0
-git push origin main
 git push origin v0.1.0
 ```
 

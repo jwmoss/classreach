@@ -11,11 +11,8 @@ import (
 	"time"
 )
 
-func TestDoAddsAuthAndDecodesJSON(t *testing.T) {
+func TestDoAddsQueryAndDecodesJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get(DefaultAuthHeader); got != "Bearer token-123" {
-			t.Fatalf("auth header = %q", got)
-		}
 		if got := r.URL.Query().Get("page"); got != "1" {
 			t.Fatalf("query page = %q", got)
 		}
@@ -23,10 +20,12 @@ func TestDoAddsAuthAndDecodesJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL, WithAuth(DefaultAuthHeader, DefaultAuthScheme, "token-123"))
+	client := New(server.URL)
 	query := url.Values{"page": []string{"1"}}
 	var out map[string]string
-	if err := client.DoJSON(context.Background(), http.MethodGet, "/test", query, nil, &out); err != nil {
+	request := JSONRequest{Method: http.MethodGet, Path: "/test", Query: query}
+	err := client.DoJSON(context.Background(), request, &out)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if out["ok"] != "true" {
@@ -55,9 +54,26 @@ func TestAPIError(t *testing.T) {
 	}
 }
 
+func TestAPIErrorDoesNotPrintHTML(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_, _ = w.Write([]byte(`<html>private student data</html>`))
+	}))
+	defer server.Close()
+
+	_, err := New(server.URL).Do(context.Background(), http.MethodGet, "/private", nil, nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if strings.Contains(err.Error(), "private student data") {
+		t.Fatalf("error exposed response body: %v", err)
+	}
+}
+
 func TestDryRunBlocksMutations(t *testing.T) {
 	client := New("https://example.invalid", WithDryRun(true), WithTimeout(time.Millisecond))
-	if _, err := client.Do(context.Background(), http.MethodPost, "/mutate", nil, map[string]string{"x": "y"}); err == nil {
+	body := map[string]string{"x": "y"}
+	if _, err := client.Do(context.Background(), http.MethodPost, "/mutate", nil, body); err == nil {
 		t.Fatal("expected dry-run error")
 	}
 }

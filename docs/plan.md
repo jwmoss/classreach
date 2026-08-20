@@ -16,7 +16,8 @@ human-readable output by default and stable JSON for agent calls.
 - Use browser-harness only during private API discovery.
 - Make runtime requests directly from the Go HTTP client.
 - Do not require Chrome or browser-harness at runtime.
-- Keep version `0.1.0` read-only, except for requests required to authenticate.
+- Keep version `0.1.0` read-only, except for authentication and the server-side read-state
+  change caused by retrieving an unread message thread.
 - Do not cache ClassReach response data.
 - Download files only after an explicit command.
 - Support the Providence Wilmington tenant first while keeping the base URL configurable.
@@ -72,6 +73,7 @@ Use this configuration shape:
 
 ```yaml
 base_url: https://providencewilmington.classreach.com
+origin_host: classreach.azurewebsites.net
 username: your-username
 password: your-password
 ```
@@ -233,6 +235,7 @@ Version `0.1.0` is complete when:
 - Each listed guardian resource has a working read command.
 - Messages and documents support explicit downloads.
 - OpenClaw receives stable JSON.
-- Commands do not cache student data or perform intentional resource mutations.
+- Commands do not cache student data or mutate resources, except when message retrieval marks an
+  unread thread as read.
 - The ClassReach skill passes the repository skill checks.
 - `make check` passes without warnings.
