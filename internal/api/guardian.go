@@ -84,6 +84,17 @@ func (c *Client) GetQuickView(ctx context.Context, weekDate string) (*QuickView,
 	return &quickView, nil
 }
 
+func (c *Client) DownloadAgenda(ctx context.Context, weekDate string) ([]byte, error) {
+	quickView, err := c.GetQuickView(ctx, weekDate)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(quickView.DownloadAgendaForWeekURL) == "" {
+		return nil, fmt.Errorf("quick view did not include an agenda download URL")
+	}
+	return c.Do(ctx, http.MethodGet, quickView.DownloadAgendaForWeekURL, nil, nil)
+}
+
 func (c *Client) GetCalendar(ctx context.Context, startDate, endDate string) (*Calendar, error) {
 	if strings.TrimSpace(startDate) == "" || strings.TrimSpace(endDate) == "" {
 		return nil, fmt.Errorf("start and end dates are required")

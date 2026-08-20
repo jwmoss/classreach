@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -31,6 +32,35 @@ func TestGetQuickView(t *testing.T) {
 	}
 	if len(quickView.Students) != 1 || quickView.Students[0].Sections[0].Course.Name != "Math" {
 		t.Fatalf("quick view = %#v", quickView)
+	}
+}
+
+func TestDownloadAgenda(t *testing.T) {
+	want := []byte("PK\x03\x04agenda")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/Home/GetQuickView":
+			_, _ = fmt.Fprint(w, `{
+				"DownloadAgendaForWeekUrl":"/Agenda/DownloadAgendaForWeek?weekDate=2026-08-17"
+			}`)
+		case "/Agenda/DownloadAgendaForWeek":
+			if r.URL.Query().Get("weekDate") != "2026-08-17" {
+				http.Error(w, "unexpected week date", http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write(want)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	got, err := New(server.URL).DownloadAgenda(context.Background(), "2026-08-17")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("agenda = %q, want %q", got, want)
 	}
 }
 

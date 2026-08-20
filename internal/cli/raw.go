@@ -44,9 +44,8 @@ func newRawGetCommand(rc *runtime) *cobra.Command {
 			if len(resp) == 0 {
 				return nil
 			}
-			rc.out.Printf("%s", string(resp))
-			if !strings.HasSuffix(string(resp), "\n") {
-				rc.out.Printf("\n")
+			if _, err := rc.stdout.Write(resp); err != nil {
+				return fmt.Errorf("write raw response: %w", err)
 			}
 			return nil
 		},
