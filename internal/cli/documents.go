@@ -2,12 +2,12 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jwmoss/classreach/internal/api"
+	"github.com/jwmoss/classreach/internal/privatefile"
 )
 
 func newDocumentsCommand(rc *runtime) *cobra.Command {
@@ -48,8 +48,8 @@ func newDocumentsDownloadCommand(rc *runtime) *cobra.Command {
 			if outputPath == "" {
 				return fmt.Errorf("%w: --output is required", errUsage)
 			}
-			if fileExists(outputPath) && !force {
-				return fmt.Errorf("output exists at %s; use --force to overwrite", outputPath)
+			if err := privatefile.Check(outputPath, force); err != nil {
+				return err
 			}
 			document, err := findDocument(cmd, rc, folderID, args[0])
 			if err != nil {
@@ -59,12 +59,7 @@ func newDocumentsDownloadCommand(rc *runtime) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(outputPath, data, 0600); err != nil {
-				return fmt.Errorf("write document %s: %w", outputPath, err)
-			}
-			rc.out.Success("document downloaded")
-			rc.out.Printf("%s\n", outputPath)
-			return nil
+			return writeDownload(rc, outputPath, data, force)
 		},
 	}
 	cmd.Flags().StringVar(&folderID, "folder", "", "folder ID containing the document")

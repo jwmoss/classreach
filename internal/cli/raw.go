@@ -34,12 +34,11 @@ func newRawGetCommand(rc *runtime) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if rc.out.IsJSON() && json.Valid(resp) {
-				var decoded any
-				if err := json.Unmarshal(resp, &decoded); err != nil {
-					return err
+			if rc.out.IsJSON() {
+				if !json.Valid(resp) {
+					return fmt.Errorf("response is not JSON; omit --json to retrieve raw bytes")
 				}
-				return rc.out.JSON(decoded)
+				return rc.out.JSON(json.RawMessage(resp))
 			}
 			if len(resp) == 0 {
 				return nil

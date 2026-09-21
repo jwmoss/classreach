@@ -48,7 +48,8 @@ Show the platform-specific config path:
 classreach config show
 ```
 
-The generated file uses mode `0600`:
+On Unix, new files and replacements use mode `0600`. The CLI rejects destination symlinks.
+On Windows, store the config in your private user directory; inherited Windows permissions apply.
 
 ```yaml
 base_url: https://providencewilmington.classreach.com
@@ -74,7 +75,7 @@ export CLASSREACH_OUTPUT='json'
 | `CLASSREACH_USERNAME` | ClassReach username or email |
 | `CLASSREACH_PASSWORD` | ClassReach password |
 | `CLASSREACH_TIMEOUT` | HTTP timeout as a Go duration, such as `30s` |
-| `CLASSREACH_DRY_RUN` | Refuse non-GET HTTP requests when set to `true` |
+| `CLASSREACH_DRY_RUN` | Preview commands without network requests or file changes |
 | `CLASSREACH_OUTPUT` | Output mode: `json` or `plain` |
 
 Precedence:
@@ -106,6 +107,7 @@ classreach messages get <thread-id> --json
 classreach messages download <thread-id> <file-id> --output attachment.pdf
 classreach documents list --json
 classreach announcements list --json
+classreach notifications counts --term <academic-term-id> --json
 classreach calendar list --start 2026-08-20 --end 2026-09-20 --json
 classreach directory list --json
 classreach directory families --search NAME --json
@@ -113,8 +115,27 @@ classreach raw get /Home/GetQuickView --query weekDate=2026-08-17T00:00:00 --jso
 classreach completion zsh > ~/.zfunc/_classreach
 ```
 
-`messages get` marks an unread thread as read in ClassReach. Document downloads require an
-explicit output path and use mode `0600`.
+`messages get` and `messages download` mark an unread thread as read in ClassReach.
+Downloads require an explicit output path. `--json` returns the file path and byte count for
+document and message downloads; agenda downloads return the saved paths.
+
+Use `--dry-run` to preview a command without login, network requests, or file changes:
+
+```bash
+classreach --json --dry-run messages get <thread-id>
+```
+
+The preview identifies the command. It does not validate server permissions or predict server results.
+Local inspection commands such as `version` and `config show` still return their normal output.
+
+Resource commands log in automatically. Use `login` or `doctor` only when you need to check a problem.
+`doctor` checks authentication and the guardian quick-view response. It does not print school records.
+
+Explicit `--json` requires valid JSON. Omit it to preserve raw binary responses.
+Responses have a 64 MiB limit. Agenda ZIP files have limits of 1,000 entries and 128 MiB after extraction.
+
+The CLI covers selected guardian reads. See [capabilities and remaining discovery](docs/capabilities.md)
+for the endpoint inventory and native calendar subscriptions.
 
 ## Agent skill
 
@@ -138,8 +159,8 @@ normal skill installation method.
 | `--no-color` | Disable color |
 | `--timeout` | HTTP timeout |
 | `--trace-http` | Log HTTP method/path/status to stderr |
-| `--dry-run` | Refuse non-GET HTTP requests |
-| `--no-input` | Disable interactive prompts |
+| `--dry-run` | Preview without network requests or file changes |
+| `--no-input` | Compatibility flag; commands do not prompt |
 
 ## Exit Codes
 

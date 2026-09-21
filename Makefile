@@ -1,7 +1,9 @@
-.PHONY: build test vet fmt tidy check clean release-snapshot
+.PHONY: build test vet fmt fmt-check tidy tidy-check check clean release-check release-snapshot
 
 BINARY ?= classreach
 PKG := ./...
+GORELEASER_VERSION ?= $(shell cat .goreleaser-version)
+GORELEASER := CGO_ENABLED=0 go run github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
 
 build:
 	mkdir -p bin
@@ -19,11 +21,19 @@ fmt:
 tidy:
 	go mod tidy
 
-check: fmt tidy vet test build
-	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git diff --exit-code -- go.mod go.sum; fi
+fmt-check:
+	@test -z "$$(gofmt -l cmd internal)"
+
+tidy-check:
+	go mod tidy -diff
+
+check: fmt-check tidy-check vet test build
+
+release-check:
+	$(GORELEASER) check
 
 release-snapshot:
-	goreleaser release --snapshot --clean
+	$(GORELEASER) release --snapshot --clean
 
 clean:
 	rm -rf bin dist

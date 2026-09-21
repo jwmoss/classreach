@@ -1,6 +1,9 @@
 # ClassReach private API discovery
 
-Status: initial discovery complete
+Status: historical guardian discovery. Request shapes and pagination remain incomplete.
+
+See [current capabilities](capabilities.md) for supported commands and unresolved contracts.
+The endpoint observations below do not constitute a public ClassReach API specification.
 
 This document contains sanitized endpoint information. It excludes credentials, cookies, tokens,
 user IDs, student IDs, section IDs, and response data.

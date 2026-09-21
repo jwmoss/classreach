@@ -73,7 +73,10 @@ func TestDoctor(t *testing.T) {
 					`<input name="Username"><input name="Password">`,
 			)
 		case r.URL.Path == "/Login" && r.Method == http.MethodPost:
+			http.SetCookie(w, &http.Cookie{Name: ".AspNet.SharedCookie", Value: "session", Path: "/"})
 			http.Redirect(w, r, "/", http.StatusFound)
+		case r.URL.Path == "/Home/GetQuickView":
+			_, _ = w.Write([]byte(`{"UserInfos":[],"Announcements":[]}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"ok"}`))
 		}
@@ -85,7 +88,7 @@ func TestDoctor(t *testing.T) {
 		OriginHost: config.DefaultOriginHost,
 		Username:   "guardian",
 		Password:   "secret",
-	}); err != nil {
+	}, false); err != nil {
 		t.Fatal(err)
 	}
 

@@ -1,8 +1,7 @@
 package cli
 
 import (
-	"encoding/json"
-	"net/http"
+	"fmt"
 
 	"github.com/spf13/cobra"
 )
@@ -12,19 +11,16 @@ func newDoctorCommand(rc *runtime) *cobra.Command {
 		Use:   "doctor",
 		Short: "Verify configuration and API connectivity",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data, err := rc.client.Do(cmd.Context(), http.MethodGet, "/", nil, nil)
+			view, err := rc.client.GetQuickView(cmd.Context(), defaultWeek())
 			if err != nil {
 				return err
+			}
+			if view.Students == nil {
+				return fmt.Errorf("quick view is missing UserInfos; authentication or the API contract has changed")
 			}
 			payload := map[string]any{
 				"ok":       true,
 				"base_url": rc.cfg.BaseURL,
-			}
-			if json.Valid(data) && len(data) > 0 {
-				var body any
-				if err := json.Unmarshal(data, &body); err == nil {
-					payload["response"] = body
-				}
 			}
 			if rc.out.IsJSON() {
 				return rc.out.JSON(payload)

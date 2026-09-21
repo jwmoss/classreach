@@ -2,10 +2,6 @@ version: 2
 
 project_name: classreach
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: classreach
     main: ./cmd/classreach
