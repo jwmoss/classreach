@@ -25,23 +25,25 @@ func newConfigShowCommand(rc *runtime) *cobra.Command {
 		Use:   "show",
 		Short: "Show effective configuration with secrets redacted",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(rc.g.configPath)
+			cfg, err := rc.effectiveConfig()
 			if err != nil {
 				return err
 			}
-			if rc.g.baseURL != "" {
-				cfg.BaseURL = rc.g.baseURL
-			}
-			if rc.out.IsJSON() {
-				return rc.out.JSON(cfg.Redacted())
+			path := rc.g.configPath
+			if path == "" {
+				path = config.DefaultPath()
 			}
 			redacted := cfg.Redacted()
+			redacted["path"] = path
+			if rc.out.IsJSON() {
+				return rc.out.JSON(redacted)
+			}
 			rc.out.Table([]string{"KEY", "VALUE"}, [][]string{
 				{"base_url", cfg.BaseURL},
 				{"origin_host", cfg.OriginHost},
 				{"username", redacted["username"]},
 				{"password", redacted["password"]},
-				{"path", config.DefaultPath()},
+				{"path", path},
 			})
 			return nil
 		},
@@ -76,12 +78,14 @@ func newConfigInitCommand(rc *runtime) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("read password from stdin: %w", err)
 				}
-				cfg.Password = strings.TrimSpace(string(data))
+				cfg.Password = strings.TrimSuffix(strings.TrimSuffix(string(data), "\n"), "\r")
 			}
-			if err := config.Save(path, cfg); err != nil {
+			if err := config.Save(path, cfg, force); err != nil {
 				return err
 			}
-			rc.out.Success("config written")
+			if rc.out.IsJSON() {
+				return rc.out.JSON(map[string]string{"path": path})
+			}
 			rc.out.Printf("%s\n", path)
 			return nil
 		},

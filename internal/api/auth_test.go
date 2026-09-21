@@ -37,7 +37,7 @@ func loginTestHandler(w http.ResponseWriter, r *http.Request) {
 			`value="logout-token"></form>`
 		_, _ = fmt.Fprint(w, logoutForm)
 	case "/read":
-		if r.Header.Get("__RequestVerificationToken") != "test-token" {
+		if r.Header.Get("__RequestVerificationToken") != "logout-token" {
 			http.Error(w, "missing anti-forgery token", http.StatusBadRequest)
 			return
 		}
@@ -57,7 +57,7 @@ func handleLoginTestRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad login request", http.StatusBadRequest)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: "auth", Value: "session"})
+	http.SetCookie(w, &http.Cookie{Name: ".AspNet.SharedCookie", Value: "session", Path: "/"})
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 

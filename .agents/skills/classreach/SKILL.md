@@ -18,8 +18,6 @@ Prefer typed commands with `--json --no-input`.
 ## Fast path
 
 ```bash
-classreach login
-classreach doctor --json
 classreach --json --no-input overview
 ```
 
@@ -28,7 +26,10 @@ classreach --json --no-input overview
 - Keep secrets and private data out of output and Git commits.
 - Resolve IDs with lists. Download identified files to explicit paths.
 - Use `raw get` only when no typed command exists.
-- `messages get` marks an unread thread as read.
+- `messages get` and `messages download` mark an unread thread as read.
+- Resource commands authenticate automatically. Use `doctor` only to diagnose a problem.
+- Use `--dry-run` for a local preview without login, network requests, or file changes.
+- Read `docs/capabilities.md` before claiming coverage outside the listed commands.
 
 ## Examples
 
@@ -37,6 +38,7 @@ classreach --json --no-input students list
 classreach --json --no-input courses list --student <student-id>
 classreach --json --no-input assignments list --student <student-id> --section <section-id>
 classreach --json --no-input grades list --student <student-id>
+classreach --json --no-input notifications counts --term <academic-term-id>
 classreach --json --no-input attendance list --student <student-id> --section <section-id>
 classreach --json --no-input messages list
 classreach --json --no-input messages get <thread-id>

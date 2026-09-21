@@ -2,12 +2,12 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jwmoss/classreach/internal/api"
+	"github.com/jwmoss/classreach/internal/privatefile"
 )
 
 func newMessagesCommand(rc *runtime) *cobra.Command {
@@ -86,8 +86,8 @@ func newMessagesDownloadCommand(rc *runtime) *cobra.Command {
 			if outputPath == "" {
 				return fmt.Errorf("%w: --output is required", errUsage)
 			}
-			if fileExists(outputPath) && !force {
-				return fmt.Errorf("output exists at %s; use --force to overwrite", outputPath)
+			if err := privatefile.Check(outputPath, force); err != nil {
+				return err
 			}
 			file, err := findMessageFile(cmd, rc, args[0], args[1])
 			if err != nil {
@@ -97,12 +97,7 @@ func newMessagesDownloadCommand(rc *runtime) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(outputPath, data, 0600); err != nil {
-				return fmt.Errorf("write attachment %s: %w", outputPath, err)
-			}
-			rc.out.Success("attachment downloaded")
-			rc.out.Printf("%s\n", outputPath)
-			return nil
+			return writeDownload(rc, outputPath, data, force)
 		},
 	}
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "output file path")

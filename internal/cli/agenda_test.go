@@ -108,3 +108,10 @@ func testZIP(t *testing.T, files map[string]string) []byte {
 	}
 	return data.Bytes()
 }
+
+func TestAgendaRejectsExcessiveExpandedSize(t *testing.T) {
+	entries := []*zip.File{{FileHeader: zip.FileHeader{Name: "oversized.pdf", UncompressedSize64: 129 << 20}}}
+	if _, err := agendaFiles(entries, t.TempDir(), false); err == nil {
+		t.Fatal("oversized ZIP entry accepted")
+	}
+}

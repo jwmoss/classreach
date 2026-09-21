@@ -17,6 +17,9 @@ var (
 )
 
 func (c *Client) Login(ctx context.Context, username, password string) error {
+	if err := c.validateMethod(http.MethodPost, "/Login"); err != nil {
+		return err
+	}
 	if strings.TrimSpace(username) == "" {
 		return fmt.Errorf("username is required")
 	}
@@ -55,7 +58,26 @@ func (c *Client) Login(ctx context.Context, username, password string) error {
 	if loginFormPresent(response) {
 		return fmt.Errorf("login failed: check the configured username and password")
 	}
+	u, _ := url.Parse(loginURL)
+	if !c.hasSessionCookie(u) {
+		return fmt.Errorf("login failed: no authenticated session; the server may show a challenge or maintenance page")
+	}
+	if token, err := antiForgeryToken(response); err == nil {
+		c.antiForgeryToken = token
+	}
 	return nil
+}
+
+func (c *Client) hasSessionCookie(u *url.URL) bool {
+	if c.httpClient.Jar == nil {
+		return false
+	}
+	for _, cookie := range c.httpClient.Jar.Cookies(u) {
+		if cookie.Name == ".AspNet.SharedCookie" && cookie.Value != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Client) sendLoginRequest(
@@ -78,7 +100,7 @@ func (c *Client) sendLoginRequest(
 		return nil, fmt.Errorf("login request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := readResponse(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read login response: %w", err)
 	}

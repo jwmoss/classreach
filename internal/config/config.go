@@ -2,11 +2,15 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/jwmoss/classreach/internal/privatefile"
 )
 
 const (
@@ -60,7 +64,7 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-func Save(path string, cfg Config) error {
+func Save(path string, cfg Config, overwrite bool) error {
 	if path == "" {
 		path = DefaultPath()
 	}
@@ -72,7 +76,7 @@ func Save(path string, cfg Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	if err := privatefile.Write(path, data, overwrite); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 	return nil
@@ -81,6 +85,15 @@ func Save(path string, cfg Config) error {
 func (c Config) Validate() error {
 	if c.BaseURL == "" {
 		return fmt.Errorf("base URL is required; set --base-url or config file base_url")
+	}
+	u, err := url.Parse(c.BaseURL)
+	if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("base URL must be an HTTPS URL without credentials, query, or fragment")
+	}
+	loopback := net.ParseIP(u.Hostname())
+	local := strings.EqualFold(u.Hostname(), "localhost") || (loopback != nil && loopback.IsLoopback())
+	if u.Scheme != "https" && !(u.Scheme == "http" && local) {
+		return fmt.Errorf("base URL must use HTTPS (HTTP is allowed only for loopback tests)")
 	}
 	if c.OriginHost == "" {
 		return fmt.Errorf("origin host is required; set --origin-host or config file origin_host")

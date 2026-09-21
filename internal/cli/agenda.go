@@ -12,12 +12,16 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/jwmoss/classreach/internal/privatefile"
 )
 
 type agendaFile struct {
 	file *zip.File
 	path string
 }
+
+const maxAgendaBytes = 128 << 20
 
 func newAgendaCommand(rc *runtime) *cobra.Command {
 	cmd := &cobra.Command{Use: "agenda", Short: "Download weekly assignment sheets"}
@@ -63,10 +67,7 @@ func newAgendaDownloadCommand(rc *runtime) *cobra.Command {
 
 func writeAgenda(data []byte, outputPath string, force bool) ([]string, error) {
 	if strings.EqualFold(filepath.Ext(outputPath), ".zip") {
-		if fileExists(outputPath) && !force {
-			return nil, fmt.Errorf("output exists at %s; use --force to overwrite", outputPath)
-		}
-		if err := os.WriteFile(outputPath, data, 0600); err != nil {
+		if err := privatefile.Write(outputPath, data, force); err != nil {
 			return nil, fmt.Errorf("write agenda %s: %w", outputPath, err)
 		}
 		return []string{outputPath}, nil
@@ -75,6 +76,9 @@ func writeAgenda(data []byte, outputPath string, force bool) ([]string, error) {
 }
 
 func extractAgenda(data []byte, outputDir string, force bool) ([]string, error) {
+	if info, err := os.Lstat(outputDir); err == nil && !info.IsDir() {
+		return nil, fmt.Errorf("agenda output must be a directory, not a file or symlink")
+	}
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return nil, fmt.Errorf("read agenda ZIP: %w", err)
@@ -88,7 +92,7 @@ func extractAgenda(data []byte, outputDir string, force bool) ([]string, error) 
 	}
 	paths := make([]string, 0, len(files))
 	for _, file := range files {
-		if err := extractAgendaFile(file); err != nil {
+		if err := extractAgendaFile(file, force); err != nil {
 			return nil, err
 		}
 		paths = append(paths, file.path)
@@ -97,12 +101,20 @@ func extractAgenda(data []byte, outputDir string, force bool) ([]string, error) 
 }
 
 func agendaFiles(entries []*zip.File, outputDir string, force bool) ([]agendaFile, error) {
+	if len(entries) > 1000 {
+		return nil, fmt.Errorf("agenda ZIP exceeds the 1000-entry limit")
+	}
 	files := make([]agendaFile, 0, len(entries))
 	seen := map[string]bool{}
+	var total uint64
 	for _, entry := range entries {
 		if entry.FileInfo().IsDir() {
 			continue
 		}
+		if entry.UncompressedSize64 > maxAgendaBytes-total {
+			return nil, fmt.Errorf("agenda ZIP exceeds the 128 MiB expanded-size limit")
+		}
+		total += entry.UncompressedSize64
 		cleanName := path.Clean(strings.ReplaceAll(entry.Name, `\`, "/"))
 		if cleanName == "." || path.IsAbs(cleanName) ||
 			cleanName == ".." || strings.HasPrefix(cleanName, "../") {
@@ -113,8 +125,8 @@ func agendaFiles(entries []*zip.File, outputDir string, force bool) ([]agendaFil
 		if seen[outputPath] {
 			return nil, fmt.Errorf("ZIP entries resolve to the same output path %s", outputPath)
 		}
-		if fileExists(outputPath) && !force {
-			return nil, fmt.Errorf("output exists at %s; use --force to overwrite", outputPath)
+		if err := privatefile.Check(outputPath, force); err != nil {
+			return nil, err
 		}
 		seen[outputPath] = true
 		files = append(files, agendaFile{file: entry, path: outputPath})
@@ -122,20 +134,23 @@ func agendaFiles(entries []*zip.File, outputDir string, force bool) ([]agendaFil
 	return files, nil
 }
 
-func extractAgendaFile(file agendaFile) error {
+func extractAgendaFile(file agendaFile, force bool) error {
 	reader, err := file.file.Open()
 	if err != nil {
 		return fmt.Errorf("open agenda entry %q: %w", file.file.Name, err)
 	}
-	data, readErr := io.ReadAll(reader)
+	data, readErr := io.ReadAll(io.LimitReader(reader, maxAgendaBytes+1))
 	closeErr := reader.Close()
 	if readErr != nil {
 		return fmt.Errorf("read agenda entry %q: %w", file.file.Name, readErr)
 	}
+	if len(data) > maxAgendaBytes {
+		return fmt.Errorf("agenda file exceeds the 128 MiB expanded-size limit")
+	}
 	if closeErr != nil {
 		return fmt.Errorf("close agenda entry %q: %w", file.file.Name, closeErr)
 	}
-	if err := os.WriteFile(file.path, data, 0600); err != nil {
+	if err := privatefile.Write(file.path, data, force); err != nil {
 		return fmt.Errorf("write agenda file %s: %w", file.path, err)
 	}
 	return nil

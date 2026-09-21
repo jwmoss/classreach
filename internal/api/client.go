@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	DefaultBaseURL   = "https://providencewilmington.classreach.com"
 	DefaultUserAgent = "classreach/dev"
+	// ponytail: cap buffered responses at 64 MiB; stream downloads if larger files are needed.
+	maxResponseBytes = 64 << 20
 )
 
 type Client struct {
@@ -78,7 +79,19 @@ func New(baseURL string, opts ...Option) *Client {
 	for _, opt := range opts {
 		opt(c)
 	}
+	c.httpClient.CheckRedirect = sameOriginRedirect
 	return c
+}
+
+func sameOriginRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return fmt.Errorf("stopped after 10 redirects")
+	}
+	if len(via) > 0 && (req.URL.Scheme != via[0].URL.Scheme ||
+		!strings.EqualFold(req.URL.Host, via[0].URL.Host)) {
+		return fmt.Errorf("refusing redirect outside the original origin")
+	}
+	return nil
 }
 
 type APIError struct {
@@ -135,7 +148,7 @@ func (c *Client) validateMethod(method, requestPath string) error {
 	if method == "" {
 		return fmt.Errorf("method is required")
 	}
-	if c.dryRun && method != http.MethodGet {
+	if c.dryRun {
 		return fmt.Errorf("dry-run: refusing %s %s", method, requestPath)
 	}
 	return nil
@@ -180,11 +193,22 @@ func (c *Client) send(req *http.Request) ([]byte, int, error) {
 		return nil, 0, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := readResponse(resp.Body)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("read response: %w", err)
 	}
 	return data, resp.StatusCode, nil
+}
+
+func readResponse(reader io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(reader, maxResponseBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxResponseBytes {
+		return nil, fmt.Errorf("response exceeds the 64 MiB limit")
+	}
+	return data, nil
 }
 
 type JSONRequest struct {

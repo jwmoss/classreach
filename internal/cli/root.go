@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -31,18 +30,17 @@ var (
 )
 
 type globals struct {
-	configPath  string
-	baseURL     string
-	originHost  string
-	asJSON      bool
-	plain       bool
-	quiet       bool
-	noColor     bool
-	showVersion bool
-	timeout     time.Duration
-	traceHTTP   bool
-	dryRun      bool
-	noInput     bool
+	configPath string
+	baseURL    string
+	originHost string
+	asJSON     bool
+	plain      bool
+	quiet      bool
+	noColor    bool
+	timeout    time.Duration
+	traceHTTP  bool
+	dryRun     bool
+	noInput    bool
 }
 
 type runtime struct {
@@ -70,8 +68,15 @@ func Execute(ctx context.Context, args []string, stdin io.Reader, stdout, stderr
 	cmd.SetIn(stdin)
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
+	if _, _, err := cmd.Find(args); err != nil {
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
+		return exitUsage
+	}
 
 	if err := cmd.ExecuteContext(ctx); err != nil {
+		if errors.Is(err, errDryRun) {
+			return exitOK
+		}
 		if !errors.Is(err, errSilent) {
 			_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		}
@@ -90,23 +95,14 @@ func newRootCommand(rc *runtime) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if rc.g.showVersion {
-				return rc.writeVersion()
-			}
 			_ = cmd.Help()
 			return errUsage
 		},
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := applyGlobalEnv(cmd, rc.g); err != nil {
-				return fmt.Errorf("%w: %v", errUsage, err)
-			}
-			if rc.g.showVersion || commandSkipsClient(cmd) {
-				rc.out = output.New(rc.stdout, rc.stderr, rc.g.asJSON, rc.g.plain, rc.g.quiet, rc.g.noColor)
-				return nil
-			}
-			return rc.initClient()
-		},
+		PersistentPreRunE: rc.prepareCommand,
 	}
+	root.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		return fmt.Errorf("%w: %v", errUsage, err)
+	})
 
 	flags := root.PersistentFlags()
 	flags.StringVar(&rc.g.configPath, "config", "", "config file path")
@@ -116,10 +112,10 @@ func newRootCommand(rc *runtime) *cobra.Command {
 	flags.BoolVar(&rc.g.plain, "plain", false, "emit stable plain text where available")
 	flags.BoolVarP(&rc.g.quiet, "quiet", "q", false, "suppress non-essential output")
 	flags.BoolVar(&rc.g.noColor, "no-color", false, "disable color")
-	flags.BoolVar(&rc.g.showVersion, "version", false, "print version and exit")
+	flags.Bool("version", false, "print version and exit")
 	flags.DurationVar(&rc.g.timeout, "timeout", 30*time.Second, "HTTP timeout")
 	flags.BoolVar(&rc.g.traceHTTP, "trace-http", false, "log HTTP requests to stderr without secrets")
-	flags.BoolVar(&rc.g.dryRun, "dry-run", false, "refuse non-GET HTTP requests")
+	flags.BoolVar(&rc.g.dryRun, "dry-run", false, "preview the command without network requests or file changes")
 	flags.BoolVar(&rc.g.noInput, "no-input", false, "disable interactive prompts")
 
 	root.AddCommand(newVersionCommand(rc))
@@ -136,18 +132,17 @@ func newRootCommand(rc *runtime) *cobra.Command {
 	root.AddCommand(newMessagesCommand(rc))
 	root.AddCommand(newDocumentsCommand(rc))
 	root.AddCommand(newAnnouncementsCommand(rc))
+	root.AddCommand(newNotificationsCommand(rc))
 	root.AddCommand(newCalendarCommand(rc))
 	root.AddCommand(newDirectoryCommand(rc))
 	root.AddCommand(newRawCommand(rc))
 	root.AddCommand(newCompletionCommand(root))
+	configureCommands(root)
 
 	return root
 }
 
 func (rc *runtime) initClient() error {
-	if rc.g.asJSON && rc.g.plain {
-		return fmt.Errorf("%w: choose only one of --json or --plain", errUsage)
-	}
 	cfg, err := rc.loadConfig()
 	if err != nil {
 		return err
@@ -159,6 +154,17 @@ func (rc *runtime) initClient() error {
 }
 
 func (rc *runtime) loadConfig() (*config.Config, error) {
+	cfg, err := rc.effectiveConfig()
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func (rc *runtime) effectiveConfig() (*config.Config, error) {
 	cfg, err := config.Load(rc.g.configPath)
 	if err != nil {
 		return nil, err
@@ -168,9 +174,6 @@ func (rc *runtime) loadConfig() (*config.Config, error) {
 	}
 	if rc.g.originHost != "" {
 		cfg.OriginHost = rc.g.originHost
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
 	}
 	return cfg, nil
 }
@@ -295,6 +298,7 @@ func newCompletionCommand(root *cobra.Command) *cobra.Command {
 var (
 	errUsage  = errors.New("invalid usage")
 	errSilent = errors.New("silent")
+	errDryRun = errors.New("dry-run complete")
 )
 
 func usageArgs(fn cobra.PositionalArgs) cobra.PositionalArgs {
@@ -306,23 +310,6 @@ func usageArgs(fn cobra.PositionalArgs) cobra.PositionalArgs {
 	}
 }
 
-func apiExitCode(err error) int {
-	var apiErr *api.APIError
-	if errors.As(err, &apiErr) {
-		if apiErr.Status == http.StatusUnauthorized || apiErr.Status == http.StatusForbidden {
-			return exitErr
-		}
-	}
-	return exitErr
-}
-
 func init() {
 	cobra.EnableCommandSorting = false
-}
-
-func envOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }
