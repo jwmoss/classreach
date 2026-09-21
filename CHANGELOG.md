@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.4.0 - 2026-09-20
+
 - Reject cross-origin authentication redirects, HTTPS downgrades, and unsafe base URLs.
 - Require an authenticated session and check the guardian API in `doctor`.
 - Write private files atomically and reject destination symlinks or unwanted overwrites.
