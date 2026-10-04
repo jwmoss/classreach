@@ -1,4 +1,4 @@
-.PHONY: build test vet fmt fmt-check tidy tidy-check check clean release-check release-snapshot
+.PHONY: build test vet fmt fmt-check tidy tidy-check check clean release-check release-snapshot test-e2e
 
 BINARY ?= classreach
 PKG := ./...
@@ -11,6 +11,9 @@ build:
 
 test:
 	go test -count=1 $(PKG)
+
+test-e2e: build
+	npm exec --no -- e2e run
 
 vet:
 	go vet $(PKG)

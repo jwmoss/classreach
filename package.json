@@ -1,0 +1,11 @@
+{
+  "name": "classreach-e2e",
+  "private": true,
+  "scripts": {
+    "test:e2e": "make test-e2e"
+  },
+  "devDependencies": {
+    "e2e": "0.17.0"
+  },
+  "type": "module"
+}

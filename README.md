@@ -176,6 +176,15 @@ normal skill installation method.
 make check
 ```
 
+Run the compiled CLI flow tests with Node 22.12 or newer:
+
+```bash
+npm ci --ignore-scripts
+npm run test:e2e
+```
+
+See [the command coverage matrix](tests/e2e/README.md) for checks and scope limits.
+
 ## Release
 
 After the release PR merges, update local `main` and tag the merge commit:
