@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -183,7 +184,7 @@ func (rc *runtime) clientOptions(cfg *config.Config) []api.Option {
 		api.WithTimeout(rc.g.timeout),
 		api.WithOriginHost(cfg.OriginHost),
 		api.WithDryRun(rc.g.dryRun),
-		api.WithUserAgent("classreach/" + version),
+		api.WithUserAgent("classreach/" + currentVersion()),
 	}
 	if rc.g.traceHTTP {
 		options = append(options, api.WithTrace(rc.traceHTTP))
@@ -253,9 +254,19 @@ func newVersionCommand(rc *runtime) *cobra.Command {
 	}
 }
 
+func currentVersion() string {
+	if version == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			return info.Main.Version
+		}
+	}
+	return version
+}
+
 func (rc *runtime) writeVersion() error {
+	v := currentVersion()
 	payload := map[string]string{
-		"version": version,
+		"version": v,
 		"commit":  commit,
 		"date":    date,
 	}
@@ -263,10 +274,10 @@ func (rc *runtime) writeVersion() error {
 		return rc.out.JSON(payload)
 	}
 	if rc.out.IsPlain() {
-		rc.out.Printf("%s\n", version)
+		rc.out.Printf("%s\n", v)
 		return nil
 	}
-	rc.out.Printf("classreach version %s\n", version)
+	rc.out.Printf("classreach version %s\n", v)
 	rc.out.Printf("commit: %s\n", commit)
 	rc.out.Printf("built:  %s\n", date)
 	return nil

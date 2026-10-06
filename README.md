@@ -14,6 +14,9 @@ Command-line client for the ClassReach private API.
 go install github.com/jwmoss/classreach/cmd/classreach@latest
 ```
 
+Module installs use the Go module version for version output and the HTTP user agent.
+Release linker metadata takes precedence. Builds without a recorded module version report `dev`.
+The JSON keys and text formats stay the same. Commit and date values retain their linker defaults unless the release supplies them.
 
 ### Homebrew
 
