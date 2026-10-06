@@ -92,6 +92,9 @@ func TestInstalledModuleVersion(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if err := os.WriteFile(filepath.Join(moduleDir, "list"), []byte(moduleVersion+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	var archive bytes.Buffer
 	zw := zip.NewWriter(&archive)
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
