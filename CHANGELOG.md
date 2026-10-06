@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v0.4.1 - 2026-10-06
+
+- Report module versions for `go install` builds in version output and HTTP requests.
+- Keep release linker metadata authoritative and preserve existing output schemas.
+- Test module installation, linker overrides, and version flags through executable boundaries.
+
 ## v0.4.0 - 2026-09-20
 
 - Reject cross-origin authentication redirects, HTTPS downgrades, and unsafe base URLs.

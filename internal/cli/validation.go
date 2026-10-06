@@ -11,7 +11,7 @@ import (
 )
 
 func configureCommands(cmd *cobra.Command) {
-	cmd.Version = version
+	cmd.Version = currentVersion()
 	cmd.SetVersionTemplate("classreach version {{.Version}}\n")
 	if cmd.Args == nil {
 		cmd.Args = usageArgs(cobra.NoArgs)

@@ -273,14 +273,17 @@ test('dry-run covers every authenticated leaf and filesystem mutation with no ne
 });
 
 test('version output and shell completion work without credentials and honor environment output overrides', async () => {
-  expect((await json(['version'])).version).toBe('dev');
-  expect((await success(['--plain', 'version'])).stdout).toBe('dev\n');
-  expect((await success(['--version', 'overview'])).stdout).toContain('classreach version dev');
+  const info = await json(['version']);
+  expect(info).toEqual({ version: expect.any(String), commit: expect.any(String), date: expect.any(String) });
+  expect(info.version.length).toBeGreaterThan(0);
+  // Native module-install tests own the version value. This flow owns output formats and flag precedence.
+  expect((await success(['--plain', 'version'])).stdout).toBe(`${info.version}\n`);
+  expect((await success(['--version', 'overview'])).stdout).toBe(`classreach version ${info.version}\n`);
   for (const shell of ['bash', 'zsh', 'fish', 'powershell']) expect((await success(['completion', shell])).stdout).toContain('classreach');
   const envOutput = await w.run(['version'], { env: { CLASSREACH_OUTPUT: 'json' } });
   expect(envOutput.code).toBe(0);
-  expect(JSON.parse(envOutput.stdout).version).toBe('dev');
-  expect((await w.run(['--plain', 'version'], { env: { CLASSREACH_OUTPUT: 'json' } })).stdout).toBe('dev\n');
+  expect(JSON.parse(envOutput.stdout)).toEqual(info);
+  expect((await w.run(['--plain', 'version'], { env: { CLASSREACH_OUTPUT: 'json' } })).stdout).toBe(`${info.version}\n`);
   expect(w.requests).toHaveLength(0);
 });
 
