@@ -179,14 +179,12 @@ normal skill installation method.
 make check
 ```
 
-Run the compiled CLI flow tests with Node 22.12 or newer:
+Run `make check` for static checks and a build.
+Run `make test` with existing credentials for live doctor and student-list checks.
+These checks read the configured tenant and print no student data.
+They do not verify downloads, message reads, or failure paths.
 
-```bash
-npm ci --ignore-scripts
-npm run test:e2e
-```
-
-See [the command coverage matrix](tests/e2e/README.md) for checks and scope limits.
+Raw GET returns `null` in JSON mode when the provider returns an empty successful response.
 
 ## Release
 
@@ -202,3 +200,5 @@ git push origin v0.1.0
 The release workflow uses GoReleaser to publish archives and checksums.
 Set `HOMEBREW_TAP_TOKEN` before the first tagged release so GoReleaser can
 update `jwmoss/homebrew-tap`.
+
+CI runs static checks without service credentials. Unit tests and fake-server suites are intentionally absent.

@@ -35,6 +35,9 @@ func newRawGetCommand(rc *runtime) *cobra.Command {
 				return err
 			}
 			if rc.out.IsJSON() {
+				if len(resp) == 0 {
+					return rc.out.JSON(nil)
+				}
 				if !json.Valid(resp) {
 					return fmt.Errorf("response is not JSON; omit --json to retrieve raw bytes")
 				}
