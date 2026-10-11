@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Return JSON `null` after successful raw requests with no response body.
+- Replace unit and fixture-server suites with live read-only executable checks.
+- Keep credential-free CI limited to builds, lint, and static checks.
+
 ## v0.4.1 - 2026-10-06
 
 - Report module versions for `go install` builds in version output and HTTP requests.

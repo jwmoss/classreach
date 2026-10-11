@@ -1,22 +1,19 @@
-.PHONY: build test vet fmt fmt-check tidy tidy-check check clean release-check release-snapshot test-e2e
+.PHONY: build test vet fmt fmt-check tidy tidy-check check clean release-tool-check release-check release-snapshot test-e2e
 
 BINARY ?= classreach
 PKG := ./...
-GORELEASER_VERSION ?= $(shell cat .goreleaser-version)
-GORELEASER := CGO_ENABLED=0 go run github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
+GORELEASER_VERSION := $(shell cat .goreleaser-version)
+GORELEASER := goreleaser
 
 build:
 	mkdir -p bin
 	go build -trimpath -o bin/$(BINARY) ./cmd/$(BINARY)
 
-test:
-	go test -count=1 $(PKG)
-
-test-e2e: build
-	npm exec --no -- e2e run
+test test-e2e: build
+	go test -tags=live -count=1 -timeout=2m ./tests
 
 vet:
-	go vet $(PKG)
+	go vet -tags=live $(PKG)
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')
@@ -25,18 +22,21 @@ tidy:
 	go mod tidy
 
 fmt-check:
-	@test -z "$$(gofmt -l cmd internal)"
+	@test -z "$$(gofmt -l cmd internal tests)"
 
 tidy-check:
 	go mod tidy -diff
 
-check: fmt-check tidy-check vet test build
+check: fmt-check tidy-check vet build
 
-release-check:
+release-tool-check:
+	@$(GORELEASER) --version | grep -Eq "^GitVersion: +v?$(subst .,[.],$(GORELEASER_VERSION:v%=%))$$" || { echo "Install GoReleaser $(GORELEASER_VERSION)"; exit 1; }
+
+release-check: release-tool-check
 	$(GORELEASER) check
 
-release-snapshot:
+release-snapshot: release-tool-check
 	$(GORELEASER) release --snapshot --clean
 
 clean:
-	rm -rf bin dist
+	trash bin dist
