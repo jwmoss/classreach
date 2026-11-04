@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Require Go 1.27.3 for the crypto/x509 certificate security fix.
 - Use the public tenant URL for login and API requests. Remove Azure origin routing and its configuration options.
 
 ## [0.4.2] - 2026-10-10
