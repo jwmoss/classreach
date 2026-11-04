@@ -33,7 +33,6 @@ var (
 type globals struct {
 	configPath string
 	baseURL    string
-	originHost string
 	asJSON     bool
 	plain      bool
 	quiet      bool
@@ -108,7 +107,6 @@ func newRootCommand(rc *runtime) *cobra.Command {
 	flags := root.PersistentFlags()
 	flags.StringVar(&rc.g.configPath, "config", "", "config file path")
 	flags.StringVar(&rc.g.baseURL, "base-url", "", "ClassReach tenant URL override")
-	flags.StringVar(&rc.g.originHost, "origin-host", "", "ClassReach Azure origin host override")
 	flags.BoolVar(&rc.g.asJSON, "json", false, "emit JSON to stdout")
 	flags.BoolVar(&rc.g.plain, "plain", false, "emit stable plain text where available")
 	flags.BoolVarP(&rc.g.quiet, "quiet", "q", false, "suppress non-essential output")
@@ -173,16 +171,12 @@ func (rc *runtime) effectiveConfig() (*config.Config, error) {
 	if rc.g.baseURL != "" {
 		cfg.BaseURL = rc.g.baseURL
 	}
-	if rc.g.originHost != "" {
-		cfg.OriginHost = rc.g.originHost
-	}
 	return cfg, nil
 }
 
 func (rc *runtime) clientOptions(cfg *config.Config) []api.Option {
 	options := []api.Option{
 		api.WithTimeout(rc.g.timeout),
-		api.WithOriginHost(cfg.OriginHost),
 		api.WithDryRun(rc.g.dryRun),
 		api.WithUserAgent("classreach/" + currentVersion()),
 	}

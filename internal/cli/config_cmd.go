@@ -40,7 +40,6 @@ func newConfigShowCommand(rc *runtime) *cobra.Command {
 			}
 			rc.out.Table([]string{"KEY", "VALUE"}, [][]string{
 				{"base_url", cfg.BaseURL},
-				{"origin_host", cfg.OriginHost},
 				{"username", redacted["username"]},
 				{"password", redacted["password"]},
 				{"path", path},
@@ -53,7 +52,6 @@ func newConfigShowCommand(rc *runtime) *cobra.Command {
 func newConfigInitCommand(rc *runtime) *cobra.Command {
 	var (
 		baseURL       string
-		originHost    string
 		username      string
 		passwordStdin bool
 		force         bool
@@ -71,7 +69,6 @@ func newConfigInitCommand(rc *runtime) *cobra.Command {
 			}
 			cfg := config.Default()
 			cfg.BaseURL = baseURL
-			cfg.OriginHost = originHost
 			cfg.Username = username
 			if passwordStdin {
 				data, err := io.ReadAll(cmd.InOrStdin())
@@ -91,12 +88,6 @@ func newConfigInitCommand(rc *runtime) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&baseURL, "base-url", config.DefaultBaseURL, "ClassReach tenant URL")
-	cmd.Flags().StringVar(
-		&originHost,
-		"origin-host",
-		config.DefaultOriginHost,
-		"ClassReach Azure origin host",
-	)
 	cmd.Flags().StringVar(&username, "username", "", "ClassReach username or email")
 	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the password from stdin")
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite an existing config file")

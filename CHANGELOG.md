@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use the public tenant URL for login and API requests. Remove Azure origin routing and its configuration options.
+
 ## [0.4.2] - 2026-10-10
 
 - Return JSON `null` after successful raw requests with no response body.

@@ -14,24 +14,21 @@ import (
 )
 
 const (
-	AppName           = "classreach"
-	EnvPrefix         = "CLASSREACH"
-	DefaultBaseURL    = "https://providencewilmington.classreach.com"
-	DefaultOriginHost = "classreach.azurewebsites.net"
-	ConfigFilename    = "config.yaml"
+	AppName        = "classreach"
+	EnvPrefix      = "CLASSREACH"
+	DefaultBaseURL = "https://providencewilmington.classreach.com"
+	ConfigFilename = "config.yaml"
 )
 
 type Config struct {
-	BaseURL    string `yaml:"base_url"`
-	OriginHost string `yaml:"origin_host"`
-	Username   string `yaml:"username"`
-	Password   string `yaml:"password"`
+	BaseURL  string `yaml:"base_url"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 func Default() Config {
 	return Config{
-		BaseURL:    DefaultBaseURL,
-		OriginHost: DefaultOriginHost,
+		BaseURL: DefaultBaseURL,
 	}
 }
 
@@ -95,9 +92,6 @@ func (c Config) Validate() error {
 	if u.Scheme != "https" && !(u.Scheme == "http" && local) {
 		return fmt.Errorf("base URL must use HTTPS (HTTP is allowed only for loopback tests)")
 	}
-	if c.OriginHost == "" {
-		return fmt.Errorf("origin host is required; set --origin-host or config file origin_host")
-	}
 	if c.Username == "" {
 		return fmt.Errorf("username is required; set CLASSREACH_USERNAME or config file username")
 	}
@@ -109,19 +103,15 @@ func (c Config) Validate() error {
 
 func (c Config) Redacted() map[string]string {
 	return map[string]string{
-		"base_url":    c.BaseURL,
-		"origin_host": c.OriginHost,
-		"username":    redact(c.Username),
-		"password":    redact(c.Password),
+		"base_url": c.BaseURL,
+		"username": redact(c.Username),
+		"password": redact(c.Password),
 	}
 }
 
 func applyEnv(cfg *Config) {
 	if value := os.Getenv(EnvPrefix + "_BASE_URL"); value != "" {
 		cfg.BaseURL = value
-	}
-	if value := os.Getenv(EnvPrefix + "_ORIGIN_HOST"); value != "" {
-		cfg.OriginHost = value
 	}
 	if value := os.Getenv(EnvPrefix + "_USERNAME"); value != "" {
 		cfg.Username = value
@@ -133,7 +123,6 @@ func applyEnv(cfg *Config) {
 
 func normalize(cfg *Config) {
 	cfg.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
-	cfg.OriginHost = strings.TrimSpace(cfg.OriginHost)
 	cfg.Username = strings.TrimSpace(cfg.Username)
 }
 
