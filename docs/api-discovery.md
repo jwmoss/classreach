@@ -13,16 +13,11 @@ user IDs, student IDs, section IDs, and response data.
 | Purpose | Host |
 |---|---|
 | Configured tenant | `{school}.classreach.com` |
-| Web application origin | `classreach.azurewebsites.net` |
 | Mobile notification API | `classreachapi.azurewebsites.net` |
 
-Cloudflare protects the tenant hostname. A normal non-browser request to the tenant login page
-returns a managed challenge.
-
-The web application runs on Azure App Service. A request can keep the tenant URL and TLS server
-name while the HTTP transport connects to `classreach.azurewebsites.net`. This returns the tenant
-application without a Cloudflare challenge. The CLI must apply this routing only to a configured
-`classreach.com` host.
+Earlier discovery used a direct Azure route to avoid a Cloudflare challenge.
+Live verification on 2026-11-03 completes normal login and guardian reads through the public
+tenant URL without browser state. The CLI uses that public route.
 
 ## Web authentication
 
@@ -56,8 +51,7 @@ Relevant cookie names include:
 - `academicTerm`
 
 The CLI keeps cookies and the post-login anti-forgery token in memory for one process. It does
-not log their values. A plain Go client has completed login and guardian reads through the Azure
-origin without browser state.
+not log their values.
 
 ## Mobile API
 

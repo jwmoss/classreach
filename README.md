@@ -56,7 +56,6 @@ On Windows, store the config in your private user directory; inherited Windows p
 
 ```yaml
 base_url: https://providencewilmington.classreach.com
-origin_host: classreach.azurewebsites.net
 username: guardian@example.com
 password: your-password
 ```
@@ -74,7 +73,6 @@ export CLASSREACH_OUTPUT='json'
 | Variable | Purpose |
 | --- | --- |
 | `CLASSREACH_BASE_URL` | ClassReach tenant URL |
-| `CLASSREACH_ORIGIN_HOST` | Azure origin host |
 | `CLASSREACH_USERNAME` | ClassReach username or email |
 | `CLASSREACH_PASSWORD` | ClassReach password |
 | `CLASSREACH_TIMEOUT` | HTTP timeout as a Go duration, such as `30s` |
@@ -87,8 +85,8 @@ Precedence:
 flags > environment > config file > defaults
 ```
 
-The CLI connects to the Azure origin while it preserves the configured tenant hostname. This
-allows direct API access without browser automation. `config show` redacts the credentials.
+The CLI logs in through the public tenant URL with the configured username and password.
+It keeps the session cookies in memory. `config show` redacts the credentials.
 
 ## Usage
 
@@ -154,7 +152,6 @@ normal skill installation method.
 | --- | --- |
 | `--config` | Config file path |
 | `--base-url` | ClassReach tenant URL override |
-| `--origin-host` | ClassReach Azure origin host override |
 | `--version` | Print version information |
 | `--json` | Emit JSON to stdout |
 | `--plain` | Emit stable plain text where available |

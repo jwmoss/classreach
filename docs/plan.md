@@ -73,7 +73,6 @@ Use this configuration shape:
 
 ```yaml
 base_url: https://providencewilmington.classreach.com
-origin_host: classreach.azurewebsites.net
 username: your-username
 password: your-password
 ```
